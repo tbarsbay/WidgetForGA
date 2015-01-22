@@ -10,7 +10,8 @@
         android:layout_width="0dp"
         android:layout_height="match_parent"
         android:layout_weight="1"
-        android:orientation="vertical">
+        android:orientation="vertical"
+        android:gravity="center_vertical">
 
         <TextView
             android:id="@+id/widget_new_users_data"
@@ -76,14 +77,49 @@
 
     </LinearLayout>
 
-    <LinearLayout
+    <RelativeLayout
         android:layout_width="0dp"
         android:layout_height="match_parent"
         android:layout_weight="1"
-        android:orientation="vertical">
+        android:gravity="center">
 
-        
+        <TextView
+            android:id="@+id/widget_version_label_1"
+            android:text="2.2.0"
+            style="@style/WidgetVersionLabel"/>
 
-    </LinearLayout>
+        <TextView
+            android:id="@+id/widget_version_users_1"
+            android:layout_toRightOf="@id/widget_version_label_1"
+            android:text="165"
+            style="@style/WidgetVersionUserCount"/>
+
+        <TextView
+            android:id="@+id/widget_version_label_2"
+            android:text="2.1.1"
+            android:layout_below="@id/widget_version_label_1"
+            style="@style/WidgetVersionLabel"/>
+
+        <TextView
+            android:id="@+id/widget_version_users_2"
+            android:layout_toRightOf="@id/widget_version_label_2"
+            android:layout_below="@id/widget_version_users_1"
+            android:text="84"
+            style="@style/WidgetVersionUserCount"/>
+
+        <TextView
+            android:id="@+id/widget_version_label_3"
+            android:text="1.8.0"
+            android:layout_below="@id/widget_version_label_2"
+            style="@style/WidgetVersionLabel"/>
+
+        <TextView
+            android:id="@+id/widget_version_users_3"
+            android:layout_toRightOf="@id/widget_version_label_3"
+            android:layout_below="@id/widget_version_users_2"
+            android:text="35"
+            style="@style/WidgetVersionUserCount"/>
+
+    </RelativeLayout>
 
 </LinearLayout>
