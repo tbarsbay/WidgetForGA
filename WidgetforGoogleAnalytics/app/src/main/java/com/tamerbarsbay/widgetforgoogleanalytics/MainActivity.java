@@ -6,16 +6,15 @@ import android.content.Context;
 import android.content.Intent;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
-import android.os.AsyncTask;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.support.v7.app.ActionBarActivity;
-import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.ArrayAdapter;
+import android.widget.ListView;
 import android.widget.Toast;
 
-import com.google.android.gms.auth.GoogleAuthException;
-import com.google.android.gms.auth.GoogleAuthUtil;
 import com.google.android.gms.auth.GooglePlayServicesAvailabilityException;
 import com.google.android.gms.auth.UserRecoverableAuthException;
 import com.google.android.gms.common.AccountPicker;
@@ -26,16 +25,35 @@ import com.google.api.client.http.HttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.services.analytics.Analytics;
-import com.google.api.services.analytics.model.GaData;
+import com.squareup.otto.Subscribe;
+import com.tamerbarsbay.widgetforgoogleanalytics.asynctasks.QueryAsyncTask;
+import com.tamerbarsbay.widgetforgoogleanalytics.asynctasks.QueryAsyncTaskResultEvent;
+import com.tamerbarsbay.widgetforgoogleanalytics.asynctasks.TokenAsyncTask;
+import com.tamerbarsbay.widgetforgoogleanalytics.asynctasks.TokenAsyncTaskResultEvent;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.io.IOException;
-import java.util.List;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.Locale;
+import java.util.TimeZone;
 
 
 public class MainActivity extends ActionBarActivity {
 
     static final int REQUEST_CODE_PICK_ACCOUNT = 1000;
     static final int REQUEST_CODE_RECOVER_FROM_PLAY_SERVICES_ERROR = 1001;
+
+    private static final String ANALYTICS_ID = "ga:86969176";
+    private String START_DATE = "2015-02-08";
+    private String END_DATE = "2015-02-08";
+    private static final String DIMENSIONS = "ga:userType";
+    private static final String METRIC_USERS = "ga:users";
 
     final HttpTransport httpTransport = AndroidHttp.newCompatibleTransport();
 
@@ -45,14 +63,10 @@ public class MainActivity extends ActionBarActivity {
 
     String mEmail;
 
+    ArrayList<String> results;
+
     private final static String REPORTING_SCOPE = "https://www.googleapis.com/auth/analytics.readonly";
     private final static String mScopes = "oauth2:" + REPORTING_SCOPE;
-
-    private static final String ANALYTICS_ID = "ga:86969176";
-    private static final String START_DATE = "2015-02-08";
-    private static final String END_DATE = "2015-02-08";
-    private static final String DIMENSIONS = "ga:userType";
-    private static final String METRIC_USERS = "ga:users";
 
     private void pickUserAccount() {
         String[] accountTypes = new String[]{"com.google"};
@@ -61,19 +75,51 @@ public class MainActivity extends ActionBarActivity {
         startActivityForResult(intent, REQUEST_CODE_PICK_ACCOUNT);
     }
 
+    @Subscribe
+    public void onTokenAyncTaskResult(TokenAsyncTaskResultEvent event) {
+        String token = event.getToken();
+        PreferenceManager.getDefaultSharedPreferences(this).edit().putString("token", token).apply();
+        getToken(token);
+    }
+
+    @Subscribe
+    public void onQueryAsyncTaskResult(QueryAsyncTaskResultEvent event) {
+        String result = event.getResult();
+        handleJson(result);
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        EventBus.getInstance().register(this);
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        EventBus.getInstance().unregister(this);
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        /*
-        GoogleApiClient client = new GoogleApiClient.Builder(this)
-                .addApi(GoogleAnalytics.API)
-                .addScope()
-                */
+        setDates();
+
+        results = new ArrayList<String>();
         getUsername();
     }
 
+    private void setDates() {
+        TimeZone tz = TimeZone.getTimeZone("America/Chicago");
+        SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
+        format.setTimeZone(tz);
+        Calendar c = Calendar.getInstance(tz);
+        String today = format.format(new Date());
+        START_DATE = today;
+        END_DATE = today;
+    }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -119,17 +165,12 @@ public class MainActivity extends ActionBarActivity {
             pickUserAccount();
         } else {
             if (isDeviceOnline()) {
-                new GetUsernameTask(MainActivity.this, mEmail, mScopes).execute();
-                /*
-                GaData.Query query = new GaData.Query();
-                query.setStartDate("2015-02-08");
-                query.setEndDate("2015-02-08");
-                query.setIds("ga:86969176");
-                query.setDimensions("ga:userType");
-                List<String> metrics = new ArrayList<String>();
-                metrics.add("ga:users");
-                query.setMetrics(metrics); */
-
+                String token = PreferenceManager.getDefaultSharedPreferences(this).getString("token", null);
+                if (token == null) {
+                    new TokenAsyncTask(MainActivity.this, mEmail, mScopes).execute();
+                } else {
+                    getToken(token);
+                }
             } else{
                 Toast.makeText(this, "No network connection available", Toast.LENGTH_LONG).show();
             }
@@ -171,89 +212,59 @@ public class MainActivity extends ActionBarActivity {
         });
     }
 
-    private void doStuff(String token) {
+    public void getToken(String token) {
         GoogleCredential credential = new GoogleCredential();
         credential.setAccessToken(token);
         service = new Analytics.Builder(httpTransport, jsonFactory, credential)
                 .setApplicationName("Widget-For-Google-Analytics")
                 .build();
+        if (service == null) {
+            // refresh the token
+            new TokenAsyncTask(this, mEmail, mScopes).execute();
+            return;
+        }
         if (service != null) {
-            Log.d("Tamer", "Service is not null!!!!");
             try {
-                GaData data = service.data().ga().get(ANALYTICS_ID, START_DATE, END_DATE, "ga:User").execute();
-                printDataTable(data);
+                Analytics.Data.Ga.Get query = service.data().ga()
+                        .get(ANALYTICS_ID, START_DATE, END_DATE, METRIC_USERS)
+                        .setOutput("json")
+                        .setDimensions(DIMENSIONS);
+                new QueryAsyncTask(query).execute();
+                Analytics.Data.Ga.Get query2 = service.data().ga()
+                        .get(ANALYTICS_ID, START_DATE, END_DATE, "ga:totalEvents")
+                        .setOutput("json")
+                        .setDimensions("ga:eventAction")
+                        .setFilters("ga:eventAction==Premium Purchased");
+                new QueryAsyncTask(query2).execute();
+                Analytics.Data.Ga.Get query3 = service.data().ga()
+                        .get(ANALYTICS_ID, START_DATE, END_DATE, METRIC_USERS)
+                        .setOutput("json")
+                        .setDimensions("ga:appVersion")
+                        .setSort("-ga:users")
+                        .setMaxResults(3);
+                new QueryAsyncTask(query3).execute();
             } catch (IOException e) {
                 e.printStackTrace();
-                Log.d("Tamer", "IOException at data get");
             }
-        } else {
-            Log.d("Tamer", "Service is null UGH");
         }
     }
 
-    private void printDataTable(GaData gaData) {
-        if (gaData.getTotalResults() > 0) {
-            Log.d("Tamer", "Data Table:");
-
-            // Print the rows of data.
-            for (List<String> rowValues : gaData.getRows()) {
-                for (String value : rowValues) {
-                    Log.d("Tamer", String.format("%-32s", value));
-                }
-                Log.d("Tamer", "");
+    private void handleJson(String result) {
+        try {
+            JSONObject jObject = new JSONObject(result);
+            JSONArray rows = jObject.getJSONArray("rows");
+            for (int i=0; i < rows.length(); i++) {
+                JSONArray row = rows.getJSONArray(i);
+                String title = row.getString(0);
+                String value = row.getString(1);
+                String full = title + ": " + value;
+                results.add(full);
             }
-        } else {
-            Log.d("Tamer", "No results found");
+        } catch (JSONException e) {
+            e.printStackTrace();
         }
-    }
-
-    static class GetUsernameTask extends AsyncTask<Void, Void, Void> {
-        MainActivity mActivity;
-        String mScope;
-        String mEmail;
-
-        GetUsernameTask(MainActivity activity, String name, String scope) {
-            this.mActivity = activity;
-            this.mScope = scope;
-            this.mEmail = name;
-        }
-
-        /**
-         * Executes the asynchronous job. This runs when you call execute()
-         * on the AsyncTask instance.
-         */
-        @Override
-        protected Void doInBackground(Void... params) {
-            try {
-                String token = fetchToken();
-                if (token != null) {
-                    // Insert the good stuff here.
-                    // Use the token to access the user's Google data.
-                    Log.d("Tamer", "Token is not null");
-                    mActivity.doStuff(token);
-                } else {
-                    Log.d("Tamer", "Token is null");
-                }
-            } catch (IOException e) {
-                Log.d("Tamer", "IOException");
-            }
-            return null;
-        }
-
-        /**
-         * Gets an authentication token from Google and handles any
-         * GoogleAuthException that may occur.
-         */
-        protected String fetchToken() throws IOException {
-            try {
-                return GoogleAuthUtil.getToken(mActivity, mEmail, mScope);
-            } catch (UserRecoverableAuthException userRecoverableException) {
-                Log.d("Tamer", "UserRecoverableException");
-                mActivity.handleException(userRecoverableException);
-            } catch (GoogleAuthException fatalException) {
-                Log.d("Tamer", "GoogleAuthException");
-            }
-            return null;
-        }
+        ArrayAdapter<String> adapter = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, results);
+        ListView lv = (ListView)findViewById(R.id.main_listview);
+        lv.setAdapter(adapter);
     }
 }

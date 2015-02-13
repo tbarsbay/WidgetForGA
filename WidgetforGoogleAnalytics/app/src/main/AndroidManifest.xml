@@ -27,6 +27,7 @@
         <receiver android:name=".UsersPurchasesWidget" >
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.tamerbarsbay.widgetforgoogleanalytics.WIDGET_UPDATE_DATA" />
             </intent-filter>
 
             <meta-data

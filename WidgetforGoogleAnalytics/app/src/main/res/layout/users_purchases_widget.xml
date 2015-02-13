@@ -1,5 +1,6 @@
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_layout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:padding="16dp"
@@ -18,7 +19,6 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="center_horizontal"
-            android:text="16"
             android:textColor="#ffffff"
             android:textSize="24sp"
             android:textStyle="bold"/>
@@ -39,7 +39,6 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="center_horizontal"
-            android:text="284"
             android:textColor="#ffffff"
             android:textSize="24sp"
             android:textStyle="bold"/>
@@ -50,7 +49,7 @@
             android:layout_height="wrap_content"
             android:layout_marginBottom="8dp"
             android:gravity="center_horizontal"
-            android:text="CURRENT USERS"
+            android:text="RETURNING USERS"
             android:textColor="#ffffff"
             android:textSize="16sp"
             android:textStyle="italic"/>
@@ -60,7 +59,6 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="center_horizontal"
-            android:text="2"
             android:textColor="#ffffff"
             android:textSize="24sp"
             android:textStyle="bold"/>
@@ -85,18 +83,15 @@
 
         <TextView
             android:id="@+id/widget_version_label_1"
-            android:text="2.2.0"
             style="@style/WidgetVersionLabel"/>
 
         <TextView
             android:id="@+id/widget_version_users_1"
             android:layout_toRightOf="@id/widget_version_label_1"
-            android:text="165"
             style="@style/WidgetVersionUserCount"/>
 
         <TextView
             android:id="@+id/widget_version_label_2"
-            android:text="2.1.1"
             android:layout_below="@id/widget_version_label_1"
             style="@style/WidgetVersionLabel"/>
 
@@ -104,12 +99,10 @@
             android:id="@+id/widget_version_users_2"
             android:layout_toRightOf="@id/widget_version_label_2"
             android:layout_below="@id/widget_version_users_1"
-            android:text="84"
             style="@style/WidgetVersionUserCount"/>
 
         <TextView
             android:id="@+id/widget_version_label_3"
-            android:text="1.8.0"
             android:layout_below="@id/widget_version_label_2"
             style="@style/WidgetVersionLabel"/>
 
@@ -117,7 +110,6 @@
             android:id="@+id/widget_version_users_3"
             android:layout_toRightOf="@id/widget_version_label_3"
             android:layout_below="@id/widget_version_users_2"
-            android:text="35"
             style="@style/WidgetVersionUserCount"/>
 
     </RelativeLayout>
