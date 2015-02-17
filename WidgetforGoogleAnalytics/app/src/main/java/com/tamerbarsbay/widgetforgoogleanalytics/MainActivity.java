@@ -166,11 +166,7 @@ public class MainActivity extends ActionBarActivity {
         } else {
             if (isDeviceOnline()) {
                 String token = PreferenceManager.getDefaultSharedPreferences(this).getString("token", null);
-                if (token == null) {
-                    new TokenAsyncTask(MainActivity.this, mEmail, mScopes).execute();
-                } else {
-                    getToken(token);
-                }
+                new TokenAsyncTask(MainActivity.this, mEmail, mScopes).execute();
             } else{
                 Toast.makeText(this, "No network connection available", Toast.LENGTH_LONG).show();
             }
@@ -218,11 +214,6 @@ public class MainActivity extends ActionBarActivity {
         service = new Analytics.Builder(httpTransport, jsonFactory, credential)
                 .setApplicationName("Widget-For-Google-Analytics")
                 .build();
-        if (service == null) {
-            // refresh the token
-            new TokenAsyncTask(this, mEmail, mScopes).execute();
-            return;
-        }
         if (service != null) {
             try {
                 Analytics.Data.Ga.Get query = service.data().ga()
